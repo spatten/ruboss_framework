@@ -35,20 +35,33 @@ package org.ruboss.controllers {
   import org.ruboss.services.http.HTTPServiceProvider;
   import org.ruboss.utils.RubossUtils;
 
+  /**
+   * Provides high level CRUD functionality.
+   */
   public class RubossModelsController extends EventDispatcher {
     
-    // internal cache of fetched model instances
-    // maps model FQNs to ModelsCollections of instances
+    /**
+     * internal cache of fetched model instances maps model 
+     * FQNs to ModelsCollections of instances
+     */
     public var cache:Dictionary;
     
-    // encapsulates much of the models metadata
+    /** encapsulates models control metadata and state */
     public var state:ModelsStateMetadata;
 
     // maps service ids to service instances (local reference)
     private var services:Dictionary;
     
     private var defaultServiceId:int;
-        
+
+    /**
+     * Creates a new instance of the controller.
+     *  
+     * @param models the array of model classes to register e.g. [Model1, Model2]
+     * @param extraServices the array of services to use (HTTPServiceProvider is registered
+     *  by default. All other providers (e.g. AIR) must be registered here)
+     * @param targetServiceId default service to use for operations (by default HTTPServiceProvider.ID)
+     */
     public function RubossModelsController(models:Array, extraServices:Array, 
       targetServiceId:int = -1) {
       super();
@@ -82,193 +95,30 @@ package org.ruboss.controllers {
       Ruboss.services = new ServiceManager(services);
     }
     
-    private function getServiceProvider(serviceId:int = -1):IServiceProvider {
-      if (serviceId == -1) serviceId = defaultServiceId;
-      return IServiceProvider(services[serviceId]);
-    }
-    
-    private function setServiceMetadata(metadata:Object):Object {
-      // if no metadata is defined check if we have any default *global* metadata set
-      if (metadata == null) {
-        metadata = Ruboss.defaultMetadata;
-      } else if (metadata != null && Ruboss.defaultMetadata != null) {
-        for (var prop:String in Ruboss.defaultMetadata) {
-          if (!metadata.hasOwnProperty(prop)) {
-            metadata[prop] = Ruboss.defaultMetadata[prop];
-          }
-        }
-      }
-      return metadata;
-    }
-    
-    private function setCurrentPage(metadata:Object, page:int):Object {
-      if (page != -1) {
-        if (metadata != null) {
-          metadata["page"] = page;
-        } else {
-          metadata = {page: page};
-        }
-      }
-      return metadata;
-    }
-    
-    private function processNtoNRelationships(object:Object):void {
-      var fqn:String = getQualifiedClassName(object);
-      for each (var relationship:Object in state.relationships[state.controllers[fqn]]) {
-        var name:String = relationship["name"];
-        var attribute:String = relationship["attribute"];
-        var local:String = state.keys[name];        
-        var target:String = state.keys[state.fqns[attribute]];
-
-        if (!object.hasOwnProperty(local)) continue;
-        
-        var items:ModelsCollection = object[local][attribute];
-        if (items == null) {
-          items = new ModelsCollection;
-        }
-        if (items.hasItem(object[target])) {
-          items.setItem(object[target]);
-        } else {
-          items.addItem(object[target]);
-        }
-        object[local][attribute] = items;      
-      }
-    }
-    
-    private function invokeService(method:Function, service:IServiceProvider, operand:Object, 
-      serviceResponder:ServiceResponder, metadata:Object = null, nestedBy:Array = null):void {
-      CursorManager.setBusyCursor();
-      metadata = setServiceMetadata(metadata);      
-      method.call(service, operand, serviceResponder, metadata, nestedBy);   
-    }
-
-    private function invokeServiceIndex(handler:Function, targetServiceId:int, clazz:Class, fetchDependencies:Boolean,
-      useLazyMode:Boolean, afterCallback:Object, metadata:Object, nestedBy:Array):void {
-      var service:IServiceProvider = getServiceProvider(targetServiceId);
-      var serviceResponder:ServiceResponder = new ServiceResponder(handler, service, this, 
-        fetchDependencies, useLazyMode, afterCallback);
-      invokeService(service.index, service, clazz, serviceResponder, metadata, nestedBy);        
-    }
-    
-    private function invokeIndex(clazz:Class, afterCallback:Object = null, fetchDependencies:Boolean = true, 
-      useLazyMode:Boolean = true, page:int = -1, metadata:Object = null, nestedBy:Array = null, 
-      targetServiceId:int = -1):void {
-      var fqn:String = getQualifiedClassName(clazz);
-      state.pages[fqn] = page;
-        
-      if (!fetchDependencies) {
-        // flag this model as standalone (in that it doesn't require dependencies)
-        // this is reset once the response is handled (so that you can request it again
-        // if necessary and fetch dependencies at that time)
-        state.standalone[fqn] = true;
-      }
-      
-      if (fetchDependencies) {
-        // request dependencies if necessary
-        var dependencies:Array = (useLazyMode && getServiceProvider(targetServiceId).canLazyLoad()) ? 
-          state.lazy[fqn] : state.eager[fqn];
-        for each (var dependency:String in dependencies) {
-          if (!state.indexed[dependency]) {
-            Ruboss.log.debug("indexing dependency:" + dependency + " of: " + fqn);
-            index(getDefinitionByName(dependency) as Class, {
-              fetchDependencies: fetchDependencies,
-              useLazyMode: useLazyMode,
-              metadata: metadata,
-              targetServiceId: targetServiceId
-            });
-          }
-        }
-        state.fetching[fqn] = dependencies.slice(0);
-      }
-        
-      state.indexed[fqn] = true;
-      state.waiting[fqn] = true;
-
-      metadata = setCurrentPage(metadata, page);
-                
-      invokeServiceIndex(function(models:Array):void {
-        if (models.length == 0) return;
-        var name:String = getQualifiedClassName(models[0]);
-        for each (var item:Object in models) {
-          processNtoNRelationships(item);
-        }
-
-        var items:ModelsCollection = new ModelsCollection(models);
-        cache[name] = items;
-        dispatchEvent(PropertyChangeEvent.createUpdateEvent(this, "index", cache, cache));
-      }, targetServiceId, clazz, fetchDependencies, useLazyMode, afterCallback, metadata, nestedBy);
-    }
-    
-    private function invokePage(clazz:Class, afterCallback:Object = null, fetchDependencies:Boolean = true, 
-      useLazyMode:Boolean = true, page:int = -1, metadata:Object = null, nestedBy:Array = null, 
-      targetServiceId:int = -1):void {
-      var fqn:String = getQualifiedClassName(clazz);
-
-      if (!fetchDependencies) {
-        // flag this model as standalone (in that it doesn't require dependencies)
-        // this is reset once the response is handled (so that you can request it again
-        // if necessary and fetch dependencies at that time)
-        state.standalone[fqn] = true;
-      }
-
-      metadata = setCurrentPage(metadata, page);
-        
-      state.pages[fqn] = page;
-        
-      invokeServiceIndex(function(models:Array):void {
-        if (models.length == 0) return;
-        var items:ModelsCollection = null;
-
-        var name:String = getQualifiedClassName(models[0]);
-        var current:ModelsCollection = ModelsCollection(cache[name]);
-          
-        var threshold:int = Ruboss.cacheThreshold[name];
-          
-        if (threshold > 1 && (current.length + models.length) >= threshold) {
-          var sliceStart:int = Math.min(current.length, models.length);
-          Ruboss.log.debug("cache size for: " + name + " will exceed the max threshold of: " + threshold + 
-            ", slicing at: " + sliceStart);
-          items = new ModelsCollection(current.source.slice(sliceStart));
-        } else {
-          items = current;
-        }
-
-        for each (var model:Object in models) {
-          if (items.hasItem(model)) {
-            items.setItem(model);
-          } else {
-            items.addItem(model);
-          }
-          processNtoNRelationships(model);
-        }
-
-        cache[name] = items;
-        dispatchEvent(PropertyChangeEvent.createUpdateEvent(this, "index", cache, cache));
-      }, targetServiceId, clazz, fetchDependencies, useLazyMode, afterCallback, metadata, nestedBy);
-    }
-
-    private function cleanupModelReferences(fqn:String, model:Object):void {
-      var property:String = RubossUtils.toCamelCase(state.controllers[fqn]);
-      var localName:String = state.keys[fqn];
-      for each (var dependency:String in state.eager[fqn]) {
-        for each (var item:Object in cache[dependency]) {
-          if (ObjectUtil.hasMetadata(item, property, "HasMany") && item[property] != null) {
-            var items:ModelsCollection = ModelsCollection(item[property]);
-            if (items.hasItem(model)) {
-              items.removeItem(model);
-            } 
-          }
-          if (ObjectUtil.hasMetadata(item, localName, "HasOne") && item[localName] != null) {
-            item[localName] = null;
-          }
-        }
-      }
-    }
-    
+    /**
+     * Resets model metadata.
+     *  
+     * @see org.ruboss.models.ModelsStateMetadata#reset
+     * @param object can be a model class or specific model instance
+     */
     public function reset(object:Object = null):void {
       state.reset(object);   
     }
 
+    /**
+     * Force reload of a particular model instance or the entire model cache.
+     *  
+     * @param object model instance or model Class reference to reload
+     * @param optsOrAfterCallback if this is a Function or an IResponder, we treat it as a callback to invoke
+     *  when the service returns; otherwise, we treat it as an anonymous Object of key/value pairs which can be used to
+     *  clober the value of any subsequent parameters.
+     * @param nestedBy an array of model instances that should used to nest this request under
+     * @param metadata an object (a hash of key value pairs that should be tagged on to the request)
+     * @param fetchDependencies if true model dependencies will be recursively fetched as well
+     * @param useLazyModel if true dependencies marked with [Lazy] will be skipped (not fetched)
+     * @param page page to request (only used by index method)
+     * @param targetServiceId service provider to use
+     */
     public function reload(object:Object, optsOrAfterCallback:Object = null, nestedBy:Array = null,
       metadata:Object = null, fetchDependencies:Boolean = true, useLazyMode:Boolean = true, page:int = -1,
       targetServiceId:int = -1):void {
@@ -282,11 +132,36 @@ package org.ruboss.controllers {
       }
     }
     
+    /**
+     * Get current cache representation for a particular model class.
+     * 
+     * @param clazz model class to look up
+     */
     public function cached(clazz:Class):ModelsCollection {
       var fqn:String = getQualifiedClassName(clazz);
       return ModelsCollection(cache[fqn]);      
     }
 
+    /**
+     * Perform REST index operation. For example:
+     *  
+     *   Ruboss.models.index(Project);
+     * 
+     * Note that the following two method calls are equivalent:
+     *   Ruboss.models.index(Project, myAfterCallbackFunction, [company]);
+     *   Ruboss.models.index(Project, {afterCallback:myAfterCallbackFunction, nestedBy:[company]});
+     * 
+     * @param clazz the Class to index
+     * @param optsOrAfterCallback if this is a Function or an IResponder, we treat it as a callback to invoke
+     *  when the service returns; otherwise, we treat it as an anonymous Object of key/value pairs which can be used to
+     *  clober the value of any subsequent parameters.
+     * @param nestedBy an array of model instances that should used to nest this request under
+     * @param metadata an object (a hash of key value pairs that should be tagged on to the request)
+     * @param fetchDependencies if true model dependencies will be recursively fetched as well
+     * @param useLazyModel if true dependencies marked with [Lazy] will be skipped (not fetched)
+     * @param page page to request (only used by index method)
+     * @param targetServiceId service provider to use
+     */
     [Bindable(event="propertyChange")]
     public function index(clazz:Class, optsOrAfterCallback:Object = null, nestedBy:Array = null,
       metadata:Object = null, fetchDependencies:Boolean = true, useLazyMode:Boolean = true, page:int = -1,
@@ -316,6 +191,23 @@ package org.ruboss.controllers {
       return ModelsCollection(cache[fqn]);
     }
     
+    /**
+     * Perform REST show operation. For example:
+     *  
+     *   Ruboss.models.show(project);
+     * 
+     * @see index
+     * 
+     * @param object object to show
+     * @param optsOrAfterCallback if this is a Function or an IResponder, we treat it as a callback to invoke
+     *  when the service returns; otherwise, we treat it as an anonymous Object of key/value pairs which can be used to
+     *  clober the value of any subsequent parameters.
+     * @param nestedBy an array of model instances that should used to nest this request under
+     * @param metadata an object (a hash of key value pairs that should be tagged on to the request)
+     * @param fetchDependencies if true model dependencies will be recursively fetched as well
+     * @param useLazyModel if true dependencies marked with [Lazy] will be skipped (not fetched)
+     * @param targetServiceId service provider to use
+     */
     [Bindable(event="propertyChange")]
     public function show(object:Object, optsOrAfterCallback:Object = null, nestedBy:Array = null,
       metadata:Object = null, fetchDependencies:Boolean = true, useLazyMode:Boolean = false,
@@ -386,7 +278,7 @@ package org.ruboss.controllers {
           }
           processNtoNRelationships(model);
           dispatchEvent(PropertyChangeEvent.createUpdateEvent(cache, fqn, items, items));
-        }, service, this, fetchDependencies, useLazyMode, afterCallback);
+        }, service, this, fetchDependencies, afterCallback);
 
         invokeService(service.show, service, object, serviceResponder, metadata, nestedBy);
       }
@@ -394,6 +286,21 @@ package org.ruboss.controllers {
       return ModelsCollection(cache[fqn]).getItem(object);
     }
 
+    /**
+     * Perform REST update operation. For example:
+     *  
+     *   Ruboss.models.update(project);
+     * 
+     * @see index
+     * 
+     * @param object object to update
+     * @param optsOrAfterCallback if this is a Function or an IResponder, we treat it as a callback to invoke
+     *  when the service returns; otherwise, we treat it as an anonymous Object of key/value pairs which can be used to
+     *  clober the value of any subsequent parameters.
+     * @param nestedBy an array of model instances that should used to nest this request under
+     * @param metadata an object (a hash of key value pairs that should be tagged on to the request)
+     * @param targetServiceId service provider to use
+     */
     public function update(object:Object, optsOrAfterCallback:Object = null, nestedBy:Array = null,
       metadata:Object = null, targetServiceId:int = -1):void {
       var afterCallback:Object = null;
@@ -418,10 +325,25 @@ package org.ruboss.controllers {
         processNtoNRelationships(model);
         Ruboss.errors = new GenericServiceErrors;
         dispatchEvent(PropertyChangeEvent.createUpdateEvent(cache, fqn, items, items));
-      }, service, this, false, false, afterCallback);
+      }, service, this, false, afterCallback);
       invokeService(service.update, service, object, serviceResponder, metadata, nestedBy);
     }
     
+    /**
+     * Perform REST create operation. For example:
+     *  
+     *   Ruboss.models.create(project);
+     * 
+     * @see index
+     * 
+     * @param object object to create
+     * @param optsOrAfterCallback if this is a Function or an IResponder, we treat it as a callback to invoke
+     *  when the service returns; otherwise, we treat it as an anonymous Object of key/value pairs which can be used to
+     *  clober the value of any subsequent parameters.
+     * @param nestedBy an array of model instances that should used to nest this request under
+     * @param metadata an object (a hash of key value pairs that should be tagged on to the request)
+     * @param targetServiceId service provider to use
+     */
     public function create(object:Object, optsOrAfterCallback:Object = null, nestedBy:Array = null,
       metadata:Object = null, targetServiceId:int = -1):void {
       var afterCallback:Object = null;
@@ -443,10 +365,25 @@ package org.ruboss.controllers {
         processNtoNRelationships(model);
         Ruboss.errors = new GenericServiceErrors;
         dispatchEvent(PropertyChangeEvent.createUpdateEvent(cache, fqn, items, items));
-      }, service, this, false, false, afterCallback);
+      }, service, this, false, afterCallback);
       invokeService(service.create, service, object, serviceResponder, metadata, nestedBy);
     }
 
+    /**
+     * Perform REST destroy operation. For example:
+     *  
+     *   Ruboss.models.destroy(project);
+     * 
+     * @see index
+     * 
+     * @param object object to destroy
+     * @param optsOrAfterCallback if this is a Function or an IResponder, we treat it as a callback to invoke
+     *  when the service returns; otherwise, we treat it as an anonymous Object of key/value pairs which can be used to
+     *  clober the value of any subsequent parameters.
+     * @param nestedBy an array of model instances that should used to nest this request under
+     * @param metadata an object (a hash of key value pairs that should be tagged on to the request)
+     * @param targetServiceId service provider to use
+     */
     public function destroy(object:Object, optsOrAfterCallback:Object = null, nestedBy:Array = null,
       metadata:Object = null, targetServiceId:int = -1):void {
       var afterCallback:Object = null;
@@ -469,8 +406,191 @@ package org.ruboss.controllers {
         }
         cleanupModelReferences(fqn, model);
         dispatchEvent(PropertyChangeEvent.createUpdateEvent(cache, fqn, items, items));     
-      }, service, this, false, false, afterCallback);
+      }, service, this, false, afterCallback);
       invokeService(service.destroy, service, object, serviceResponder, metadata, nestedBy);
+    }
+
+    private function getServiceProvider(serviceId:int = -1):IServiceProvider {
+      if (serviceId == -1) serviceId = defaultServiceId;
+      return IServiceProvider(services[serviceId]);
+    }
+    
+    private function setServiceMetadata(metadata:Object):Object {
+      // if no metadata is defined check if we have any default *global* metadata set
+      if (metadata == null) {
+        metadata = Ruboss.defaultMetadata;
+      } else if (metadata != null && Ruboss.defaultMetadata != null) {
+        for (var prop:String in Ruboss.defaultMetadata) {
+          if (!metadata.hasOwnProperty(prop)) {
+            metadata[prop] = Ruboss.defaultMetadata[prop];
+          }
+        }
+      }
+      return metadata;
+    }
+    
+    private function setCurrentPage(metadata:Object, page:int):Object {
+      if (page != -1) {
+        if (metadata != null) {
+          metadata["page"] = page;
+        } else {
+          metadata = {page: page};
+        }
+      }
+      return metadata;
+    }
+    
+    private function processNtoNRelationships(object:Object):void {
+      var fqn:String = getQualifiedClassName(object);
+      for each (var relationship:Object in state.relationships[state.controllers[fqn]]) {
+        var name:String = relationship["name"];
+        var attribute:String = relationship["attribute"];
+        var local:String = state.keys[name];        
+        var target:String = state.keys[state.fqns[attribute]];
+
+        if (!object.hasOwnProperty(local)) continue;
+        
+        var items:ModelsCollection = object[local][attribute];
+        if (items == null) {
+          items = new ModelsCollection;
+        }
+        if (items.hasItem(object[target])) {
+          items.setItem(object[target]);
+        } else {
+          items.addItem(object[target]);
+        }
+        object[local][attribute] = items;      
+      }
+    }
+    
+    private function invokeService(method:Function, service:IServiceProvider, operand:Object, 
+      serviceResponder:ServiceResponder, metadata:Object = null, nestedBy:Array = null):void {
+      CursorManager.setBusyCursor();
+      metadata = setServiceMetadata(metadata);      
+      method.call(service, operand, serviceResponder, metadata, nestedBy);   
+    }
+
+    private function invokeServiceIndex(handler:Function, targetServiceId:int, clazz:Class, fetchDependencies:Boolean,
+      afterCallback:Object, metadata:Object, nestedBy:Array):void {
+      var service:IServiceProvider = getServiceProvider(targetServiceId);
+      var serviceResponder:ServiceResponder = new ServiceResponder(handler, service, this, 
+        fetchDependencies, afterCallback);
+      invokeService(service.index, service, clazz, serviceResponder, metadata, nestedBy);        
+    }
+    
+    private function invokeIndex(clazz:Class, afterCallback:Object = null, fetchDependencies:Boolean = true, 
+      useLazyMode:Boolean = true, page:int = -1, metadata:Object = null, nestedBy:Array = null, 
+      targetServiceId:int = -1):void {
+      var fqn:String = getQualifiedClassName(clazz);
+      state.pages[fqn] = page;
+        
+      if (!fetchDependencies) {
+        // flag this model as standalone (in that it doesn't require dependencies)
+        // this is reset once the response is handled (so that you can request it again
+        // if necessary and fetch dependencies at that time)
+        state.standalone[fqn] = true;
+      }
+      
+      if (fetchDependencies) {
+        // request dependencies if necessary
+        var dependencies:Array = (useLazyMode && getServiceProvider(targetServiceId).canLazyLoad()) ? 
+          state.lazy[fqn] : state.eager[fqn];
+        for each (var dependency:String in dependencies) {
+          if (!state.indexed[dependency]) {
+            Ruboss.log.debug("indexing dependency:" + dependency + " of: " + fqn);
+            index(getDefinitionByName(dependency) as Class, {
+              fetchDependencies: fetchDependencies,
+              useLazyMode: useLazyMode,
+              metadata: metadata,
+              targetServiceId: targetServiceId
+            });
+          }
+        }
+        state.fetching[fqn] = dependencies.slice(0);
+      }
+        
+      state.indexed[fqn] = true;
+      state.waiting[fqn] = true;
+
+      metadata = setCurrentPage(metadata, page);
+                
+      invokeServiceIndex(function(models:Array):void {
+        if (models.length == 0) return;
+        var name:String = getQualifiedClassName(models[0]);
+        for each (var item:Object in models) {
+          processNtoNRelationships(item);
+        }
+
+        var items:ModelsCollection = new ModelsCollection(models);
+        cache[name] = items;
+        dispatchEvent(PropertyChangeEvent.createUpdateEvent(this, "index", cache, cache));
+      }, targetServiceId, clazz, fetchDependencies, afterCallback, metadata, nestedBy);
+    }
+    
+    private function invokePage(clazz:Class, afterCallback:Object = null, fetchDependencies:Boolean = true, 
+      useLazyMode:Boolean = true, page:int = -1, metadata:Object = null, nestedBy:Array = null, 
+      targetServiceId:int = -1):void {
+      var fqn:String = getQualifiedClassName(clazz);
+
+      if (!fetchDependencies) {
+        // flag this model as standalone (in that it doesn't require dependencies)
+        // this is reset once the response is handled (so that you can request it again
+        // if necessary and fetch dependencies at that time)
+        state.standalone[fqn] = true;
+      }
+
+      metadata = setCurrentPage(metadata, page);
+        
+      state.pages[fqn] = page;
+        
+      invokeServiceIndex(function(models:Array):void {
+        if (models.length == 0) return;
+        var items:ModelsCollection = null;
+
+        var name:String = getQualifiedClassName(models[0]);
+        var current:ModelsCollection = ModelsCollection(cache[name]);
+          
+        var threshold:int = Ruboss.cacheThreshold[name];
+          
+        if (threshold > 1 && (current.length + models.length) >= threshold) {
+          var sliceStart:int = Math.min(current.length, models.length);
+          Ruboss.log.debug("cache size for: " + name + " will exceed the max threshold of: " + threshold + 
+            ", slicing at: " + sliceStart);
+          items = new ModelsCollection(current.source.slice(sliceStart));
+        } else {
+          items = current;
+        }
+
+        for each (var model:Object in models) {
+          if (items.hasItem(model)) {
+            items.setItem(model);
+          } else {
+            items.addItem(model);
+          }
+          processNtoNRelationships(model);
+        }
+
+        cache[name] = items;
+        dispatchEvent(PropertyChangeEvent.createUpdateEvent(this, "index", cache, cache));
+      }, targetServiceId, clazz, fetchDependencies, afterCallback, metadata, nestedBy);
+    }
+
+    private function cleanupModelReferences(fqn:String, model:Object):void {
+      var property:String = RubossUtils.toCamelCase(state.controllers[fqn]);
+      var localName:String = state.keys[fqn];
+      for each (var dependency:String in state.eager[fqn]) {
+        for each (var item:Object in cache[dependency]) {
+          if (ObjectUtil.hasMetadata(item, property, "HasMany") && item[property] != null) {
+            var items:ModelsCollection = ModelsCollection(item[property]);
+            if (items.hasItem(model)) {
+              items.removeItem(model);
+            } 
+          }
+          if (ObjectUtil.hasMetadata(item, localName, "HasOne") && item[localName] != null) {
+            item[localName] = null;
+          }
+        }
+      }
     }
   }
 }
