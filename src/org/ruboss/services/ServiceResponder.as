@@ -17,6 +17,7 @@ package org.ruboss.services {
   
   import org.ruboss.Ruboss;
   import org.ruboss.controllers.RubossModelsController;
+  import org.ruboss.events.ServiceCallStopEvent;
 
   /**
    * Central response manager for RESTful CRUD operations.
@@ -50,14 +51,15 @@ package org.ruboss.services {
      * @see mx.rpc.IResponder#result
      */
     public function result(event:Object):void {
-      CursorManager.removeBusyCursor();    
+      CursorManager.removeBusyCursor();
+      controller.dispatchEvent(new ServiceCallStopEvent);
       if (handler != null) {
         if (!service.hasErrors(event.result)) {
           var fqn:String = service.peek(event.result);
           if (checkResultOrder(fqn, event)) {
             if (fqn != null) Ruboss.log.debug("handling response for: " + fqn);
             var checkedResult:Object = service.unmarshall(event.result);
-            handler.call(controller, checkedResult);
+            handler(checkedResult);
             for each (var dependant:Object in controller.state.queue[fqn]) {
               var target:Object = dependant["target"];
               var targetEvent:Object = dependant["event"];
@@ -84,6 +86,7 @@ package org.ruboss.services {
      */
     public function fault(error:Object):void {
       CursorManager.removeBusyCursor();
+      controller.dispatchEvent(new ServiceCallStopEvent);
       invokeAfterCallbackErrorHandler(error);
       Ruboss.log.error(error.toString());
     }

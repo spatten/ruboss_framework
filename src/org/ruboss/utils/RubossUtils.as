@@ -29,7 +29,6 @@ package org.ruboss.utils {
    */
   public class RubossUtils {
     private static const IGNORED_TYPES:Array = [
-      "org.ruboss.models::ModelsCollection",
       "mx.collections::ArrayCollection",
       "flash.net::FileReference",
       "flash.net::FileReferenceList",
@@ -81,13 +80,28 @@ package org.ruboss.utils {
     }
     
     /**
-     * Get Ruboss Model resource controller annotation
+     * Get Ruboss Model resource name annotation
      *  
      * @param object ruboss model
-     * @result string value of [Resource(controller="*")]
+     * @result string value of [Resource(name="*")]
      */
-    public static function getResourceController(object:Object):String {
-      return describeResource(object).arg.(@key == "controller").@value;
+    public static function getResourceName(object:Object):String {
+      return describeResource(object).arg.(@key == "name").@value;
+    }
+    
+    /**
+     * Get Ruboss Model resource pathPrefix annotation
+     *  
+     * @param object ruboss model
+     * @result string value of [Resource(pathPrefix="*")]
+     */
+    public static function getResourcePathPrefix(object:Object):String {
+      var value:String = describeResource(object).arg.(@key == "pathPrefix").@value;
+      if (!isEmpty(value)) {
+        value = value + "/";
+      }
+      
+      return value;
     }
     
     /**
