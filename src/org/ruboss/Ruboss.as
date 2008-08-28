@@ -21,6 +21,7 @@ package org.ruboss {
   import mx.logging.LogEventLevel;
   import mx.logging.targets.TraceTarget;
   
+  import org.ruboss.collections.RubossCollection;
   import org.ruboss.controllers.RubossCommandsController;
   import org.ruboss.controllers.RubossModelsController;
   import org.ruboss.controllers.SimpleHTTPController;
@@ -28,6 +29,7 @@ package org.ruboss {
   import org.ruboss.services.ServiceManager;
   import org.ruboss.services.http.HTTPServiceProvider;
   import org.ruboss.utils.RubossUtils;
+  import org.ruboss.models.ModelsCollection;
   
   /**
    * Provides central access to most commonly used framework features
@@ -109,31 +111,31 @@ package org.ruboss {
     }
 
     /**
-     * Merges an array into an ArrayCollection (without side-effects). A new ArrayCollection is
+     * Merges an array into a RubossCollection (without side-effects). A new RubossCollection is
      * created/returned as a result.
      *  
      * @param items ArrayCollection to merge into
      * @param toAdd Array to merge
      * @param after if true toAdd gets appended else prepended
      *  
-     * @return a *new* ArrayCollection
+     * @return a *new* RubossCollection
      */
     public static function merge(items:ArrayCollection, toAdd:Array, 
-      after:Boolean = false):ArrayCollection {
+      after:Boolean = false):RubossCollection {
       return RubossUtils.mergeArrays(items.source, toAdd, after);
     }
     
     /**
-     * Filters a given ArrayCollection with no side effects, a new array collection is created
+     * Filters a given ArrayCollection with no side effects, a new ruboss array collection is created
      * that the filter is applied on.
      *  
      * @param items ArrayCollection instance to filter
      * @param filter filter function
      * 
-     * @return new filtered ArrayCollection instance
+     * @return new filtered RubossCollection instance
      */
-    public static function filter(items:ArrayCollection, filter:Function = null):ArrayCollection {
-      var results:ArrayCollection = new ArrayCollection(items.source.slice(0));
+    public static function filter(items:ArrayCollection, filter:Function = null):RubossCollection {
+      var results:RubossCollection = new RubossCollection(items.source.slice(0));
       results.filterFunction = filter;
       results.refresh();
       return results;
