@@ -22,7 +22,9 @@ package org.ruboss.utils {
   import mx.formatters.DateFormatter;
   import mx.utils.ObjectUtil;
   
+  import org.ruboss.collections.RubossCollection;
   import org.ruboss.models.RubossModel;
+  import org.ruboss.models.ModelsCollection;
 
   /**
    * Various Utilities
@@ -34,14 +36,29 @@ package org.ruboss.utils {
       "flash.net::FileReferenceList",
       "org.ruboss.models::RubossFileReference"
     ];
+    
+    private static const RESERVED_NAMES:Array = [
+      "id",
+      "fetched",
+      "attachment"
+    ];
 
     /**
      * Checks to see if a property should be ignored during serialization based on type.
      * 
      * @param type property type
      */
-    public static function isInvalidProperty(type:String):Boolean {
+    public static function isInvalidPropertyType(type:String):Boolean {
       return IGNORED_TYPES.indexOf(type) > -1;
+    }
+
+    /**
+     * Checks to see if a property should be ignored during serialization based on name.
+     * 
+     * @param name property name
+     */    
+    public static function isInvalidPropertyName(name:String):Boolean {
+      return RESERVED_NAMES.indexOf(name) > -1;
     }
     
     /**
@@ -67,8 +84,7 @@ package org.ruboss.utils {
         var cloned:Object = new clazz;
         cloned["id"] = object["id"];
         for each (var node:XML in describeType(object)..accessor) {
-          var declaredBy:String = node.@declaredBy;
-          if (isInSamePackage(declaredBy, fqn)) {
+          if (!isInvalidPropertyName(node.@name)) {
             var name:String = node.@name;
             cloned[name] = object[name];
           }
@@ -267,17 +283,17 @@ package org.ruboss.utils {
     }
 
     /**
-     * Merges two arrays and returns a new ArrayCollection of the result
+     * Merges two arrays and returns a new RubossCollection of the result
      */
     public static function mergeArrays(items:Array, toAdd:Array, 
-      after:Boolean = false):ArrayCollection {
+      after:Boolean = false):RubossCollection {
       var results:Array;
       if (after) {
         results = items.slice(0);
-        return new ArrayCollection(results.concat(toAdd));
+        return new RubossCollection(results.concat(toAdd));
       } else {
         results = toAdd.slice(0);
-        return new ArrayCollection(results.concat(items));
+        return new RubossCollection(results.concat(items));
       }
     }
 
