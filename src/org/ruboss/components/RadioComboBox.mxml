@@ -90,12 +90,13 @@
   </mx:HBox>
   <mx:HBox width="100%">
     <mx:RadioButton id="comboRB" label="" value="{null}" group="{radioButtonGroup}" click="onRadioButtonClick(event);"/>
-    <mx:ComboBox id="comboBox"
-      dataProvider="{Ruboss.filter(comboItems, filterRadioItems)}"
-      prompt="{comboPrompt}"
-      enabled="{comboRB.selected}"
-      width="{comboWidth}"
-      selectedItem="{selectedItem}"
-      change="onComboBoxChange(event);"/>
+    <mx:HBox enabled="{comboRB.selected}">
+      <mx:ComboBox id="comboBox"
+        dataProvider="{Ruboss.filter(comboItems, filterRadioItems)}"
+        prompt="{comboPrompt}"
+        width="{comboWidth}"
+        selectedItem="{selectedItem}"
+        change="onComboBoxChange(event);"/>
+    </mx:HBox>
   </mx:HBox>
 </mx:VBox>
