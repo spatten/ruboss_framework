@@ -1,0 +1,20 @@
+---
+mxml_path: "test/TestApp.mxml"
+appxml_path: "test/TestApp-app.xml"
+
+src_dirs: [ 'src', 'test' ]
+lib_dir: lib
+
+air_path: bin/TestApp.air
+swf_path: bin/TestApp.swf
+assets: test/assets
+
+development:
+  debug: true
+
+test:
+  swf_path: bin/TestApp.swf
+  mxml_path: test/TestApp.mxml
+  appxml_path: test/TestApp-app.xml
+  src_dirs: [ 'src', 'test' ]
+  debug: true

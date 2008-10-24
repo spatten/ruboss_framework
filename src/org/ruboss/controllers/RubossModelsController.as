@@ -48,7 +48,8 @@ package org.ruboss.controllers {
     public var cache:Dictionary;
     
     /**
-     * maps model class names to their FQNs, saves us from having to do getQualifiedClassName calls.
+     * maps model class names to their FQNs, saves us from 
+     * having to do getQualifiedClassName calls.
      */
     public var names:Dictionary;
     
@@ -324,7 +325,6 @@ package org.ruboss.controllers {
         }
       }
       var service:IServiceProvider = getServiceProvider(targetServiceId);
-      cleanupModelReferences(getQualifiedClassName(object), object);
       var serviceResponder:ServiceResponder = new ServiceResponder(onUpdate, service, this, false, afterCallback);
       invokeService(service.update, service, object, serviceResponder, metadata, nestedBy);
     }
@@ -432,19 +432,46 @@ package org.ruboss.controllers {
         var attribute:String = relationship["attribute"];
         var local:String = state.keys[name];        
         var target:String = state.keys[state.fqns[attribute]];
-
-        if (!object.hasOwnProperty(local)) continue;
         
-        var items:ModelsCollection = object[local][attribute];
-        if (items == null) {
-          items = new ModelsCollection;
-        }
-        if (items.hasItem(object[target])) {
-          items.setItem(object[target]);
+        if (relationship.hasOwnProperty("indirect")) {
+          var indirect:String = relationship["indirect"];
+          var indirectRef:String = state.keys[state.fqns[indirect]];
+          try {
+            var indirectItems:ModelsCollection = object[indirectRef][local][attribute];
+            if (indirectItems == null) {
+              indirectItems = new ModelsCollection;
+              if (indirectItems.hasItem(object)) {
+                indirectItems.setItem(object);
+              } else {
+                indirectItems.addItem(object);
+              }
+            }
+            object[indirectRef][local][attribute] = indirectItems;
+          } catch (e:Error) {
+            Ruboss.log.warn("failed to set up a HasMany(through=\"x\", dependsOn=\"y\") relationship for: " + fqn +
+              ". One of the properties in the chain is likely null. Check that dependencies have been fetched and that "
+               + fqn + "." + indirectRef + "." + local + " resolves.");
+          }
         } else {
-          items.addItem(object[target]);
-        }
-        object[local][attribute] = items;      
+          if (!object.hasOwnProperty(local)) continue;
+          
+          try {
+            var items:ModelsCollection = object[local][attribute];
+            if (items == null) {
+              items = new ModelsCollection;
+            }
+            if (items.hasItem(object[target])) {
+              items.setItem(object[target]);
+            } else {
+              items.addItem(object[target]);
+            }
+            object[local][attribute] = items;
+          } catch (e:Error) {
+            Ruboss.log.warn("failed to set up a HasMany(through=\"x\") relationship for: " + fqn +
+              ". One of the properties in the chain is likely null. Check that dependencies have been fetched and that "
+               + fqn + "." + local + " resolves.");            
+          }
+        } 
       }
     }
     
@@ -633,7 +660,7 @@ package org.ruboss.controllers {
       dispatchEvent(new CacheUpdateEvent(fqn));        
     }
 
-    private function cleanupModelReferences(fqn:String, model:Object):void {
+    public function cleanupModelReferences(fqn:String, model:Object):void {
       var property:String = RubossUtils.toCamelCase(state.controllers[fqn]);
       var localName:String = state.keys[fqn];
       for each (var dependency:String in state.eager[fqn]) {

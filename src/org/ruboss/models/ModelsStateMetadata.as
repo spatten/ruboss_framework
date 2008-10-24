@@ -19,6 +19,7 @@ package org.ruboss.models {
   
   import mx.collections.ArrayCollection;
   
+  import org.ruboss.Ruboss;
   import org.ruboss.utils.RubossUtils;
   
   /**
@@ -29,7 +30,7 @@ package org.ruboss.models {
     /** currently registered model classes */
     public var models:Array;
     
-    /** maps FQNs and local model names to controllers */
+    /** maps FQNs (Fully Qualified Names) and local model names to controllers */
     public var controllers:Dictionary;
     
     /** a list of all registered controllers mapped to fqns */
@@ -129,7 +130,7 @@ package org.ruboss.models {
         
         // this is what model names would look like after 
         // camel-casing variable names we get from RoR
-        var localName:String = modelName.charAt(0).toLowerCase() + modelName.slice(1);
+        var localName:String = RubossUtils.lowerCaseFirst(modelName);
         
         var controller:String = RubossUtils.getResourceName(model);
         
@@ -206,13 +207,21 @@ package org.ruboss.models {
         // set of nodes and there's no point in going over every single accessor of every single model twice   
         for each (var relationship:XML in RubossUtils.getAttributeAnnotation(node, "HasMany")) {
           var value:String = relationship.arg.(@key == "through").@value.toString();
-          if (!RubossUtils.isEmpty(value)) {
+          var dependsOn:String = relationship.arg.(@key == "dependsOn").@value.toString();
+          if (!RubossUtils.isEmpty(dependsOn) && !RubossUtils.isEmpty(value)) {
+            var dependsOnTarget:String = controllers[RubossUtils.lowerCaseFirst(dependsOn)];
+            var indirect:String = RubossUtils.toSnakeCase(value);
+            if (relationships[dependsOnTarget] == null) {
+              relationships[dependsOnTarget] = new Array;
+            }
+            (relationships[dependsOnTarget] as Array).push({name: fqn, attribute: node.@name.toString(), indirect: indirect});
+          } else if (!RubossUtils.isEmpty(value)) {
             var target:String = RubossUtils.toSnakeCase(value);
             if (relationships[target] == null) {
               relationships[target] = new Array;
             }
             (relationships[target] as Array).push({name: fqn, attribute: node.@name.toString()});
-          }        
+          }       
         }
         
         if (!RubossUtils.isBelongsTo(node) || RubossUtils.isIgnored(node)) continue;
@@ -228,6 +237,35 @@ package org.ruboss.models {
               types.push(key);
             }
           }
+        }
+        
+        try {
+          // determine what a well-formed reference name should look like, this is typically
+          // driven by class name = declarations of type project:Project are well-formed
+          // in other words if localName == keyName, then it's well-formed
+          var localName:String = RubossUtils.lowerCaseFirst(node.@type.split("::")[1] as String);
+          var keyName:String = node.@name;
+          
+          // if we have several references to some other class then normal mapping between
+          // class types and key names is no longer sufficient, hence we store fqn.keyName to
+          // qualify keys. this allows for relationships such as:
+          //  foo:Project
+          //  bar:Project
+          // to co-exist in the same model, this will assume that foo_id and bar_id are the keys
+  
+          // it's also possible to override what the keys are entirely by using
+          // [BelongsTo(foreignKey="keyName")] annotation.        
+          var foreignKey:String = descriptor.arg.(@key == "foreignKey").@value.toString();
+          if (foreignKey) {
+            keyName = RubossUtils.toSnakeCase(foreignKey).replace(/_id$/, "");
+          }
+          
+          if (keyName != localName) {
+            keys[fqn + "." + keyName] = node.@type;
+          }
+        } catch (e:Error) {
+          Ruboss.log.error("Failed to configure [BelongsTo] relationships for: " + fqn + ". " +
+            "and reference: " + keyName + " of type: " + node.@type.toString + "(" + localName + ")");
         }
 
         for each (var type:String in types) {

@@ -29,6 +29,7 @@ package org.ruboss.services.air {
   
   import org.ruboss.Ruboss;
   import org.ruboss.controllers.RubossModelsController;
+  import org.ruboss.models.ModelsArray;
   import org.ruboss.models.ModelsCollection;
   import org.ruboss.models.ModelsStateMetadata;
   import org.ruboss.services.IServiceProvider;
@@ -164,7 +165,7 @@ package org.ruboss.services.air {
       var statement:SQLStatement = getSQLStatement(sql[fqn]["select"] + " WHERE id=" + object["id"]);
       statement.execute();
       
-      processModel(fqn, object, statement.getResult().data[0]);
+      processModel(fqn, object, statement.getResult().data[0], true);
       invokeResponder(responder, object);
     }
     
@@ -299,6 +300,16 @@ package org.ruboss.services.air {
           }
          
           snakeName = snakeName + "_id";
+
+          var descriptor:XML = RubossUtils.getAttributeAnnotation(node, "BelongsTo")[0];
+          var foreignKey:String = descriptor.arg.(@key == "foreignKey").@value.toString();
+          if (foreignKey) {
+            snakeName = RubossUtils.toSnakeCase(foreignKey);
+            if (snakeName.search(/_id$/) == -1) {
+              snakeName = snakeName + "_id";
+            }
+          }
+          
           createStatement += snakeName + " " +  types["int"] + ", ";
         } else {   
           createStatement += snakeName + " " +  getSQLType(node) + ", ";
@@ -352,7 +363,7 @@ package org.ruboss.services.air {
       }
     }
     
-    private function processModel(fqn:String, model:Object, source:Object):void {
+    private function processModel(fqn:String, model:Object, source:Object, existingReference:Boolean = false):void {
       var metadata:XML = describeType(model);        
       for (var property:String in source) {
         if (property == "id") continue;
@@ -382,6 +393,10 @@ package org.ruboss.services.air {
             targetName = camelCheckName;
             referenceTargetName = targetName;
             isRef = true;
+          } else if (state.keys[fqn + "." + camelCheckName]) {
+            targetName = camelCheckName;
+            referenceTargetName = fqn + "." + camelCheckName;
+            isRef = true;
           }
         } else {
           targetName = RubossUtils.toCamelCase(targetName);
@@ -395,6 +410,10 @@ package org.ruboss.services.air {
             var key:String = state.keys[referenceTargetName];
             // key should be fqn for the targetName;
             ref = ModelsCollection(Ruboss.models.cache[key]).withId(elementId);
+          }
+          
+          if (existingReference && model[targetName] != ref) {
+            Ruboss.models.cleanupModelReferences(fqn, model);
           }
 
           // collectionName should be the same as the camel-cased name of the controller for the current node
@@ -448,7 +467,8 @@ package org.ruboss.services.air {
             
       statement.execute();
       
-      var result:Array  = new Array;
+      var result:ModelsArray  = new ModelsArray;
+      result.modelsType = fqn;
       for each (var object:Object in statement.getResult().data) {
         // if we already have something with this fqn and id in cache attempt to reuse it
         // this will ensure that whatever is doing comparison by reference should still be happy

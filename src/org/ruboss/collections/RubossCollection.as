@@ -19,6 +19,9 @@ package org.ruboss.collections {
    */
   public class RubossCollection extends ArrayCollection {
 
+    // allows us to store multiple filter functions for the collection
+    private var _filters:Array;
+
     /** 
      * @see mx.collections.ArrayCollection
      */
@@ -74,6 +77,35 @@ package org.ruboss.collections {
         }
       }
       return retval;
+    }
+
+    /** 
+     * @see mx.collections.ArrayCollection
+     */
+    public function get filterFunctions():Array {
+      return _filters;
+    }
+    
+    /** 
+     * @see mx.collections.ArrayCollection
+     */
+    public function set filterFunctions(filters:Array):void {
+      _filters = filters;
+      filterFunction = chainedFilter;
+    }
+    
+    /**
+     * Applies a chained filter (several filter functions chained together) 
+     * to the collection 
+     * @param item item to filter
+     * @return true or false based on the result of individual filter 
+     *  function results
+     */
+    private function chainedFilter(item:Object):Boolean {
+      for each (var filter:Function in filterFunctions) {
+        if (!filter(item)) return false;
+      }
+      return true;
     }
   }
 }
