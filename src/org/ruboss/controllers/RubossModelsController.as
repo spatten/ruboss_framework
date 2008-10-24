@@ -26,6 +26,7 @@ package org.ruboss.controllers {
   import org.ruboss.Ruboss;
   import org.ruboss.events.CacheUpdateEvent;
   import org.ruboss.events.ServiceCallStartEvent;
+  import org.ruboss.models.ModelsArray;
   import org.ruboss.models.ModelsCollection;
   import org.ruboss.models.ModelsStateMetadata;
   import org.ruboss.services.GenericServiceErrors;
@@ -45,6 +46,11 @@ package org.ruboss.controllers {
      * FQNs to ModelsCollections of instances
      */
     public var cache:Dictionary;
+    
+    /**
+     * maps model class names to their FQNs, saves us from having to do getQualifiedClassName calls.
+     */
+    public var names:Dictionary;
     
     /** encapsulates models control metadata and state */
     public var state:ModelsStateMetadata;
@@ -66,10 +72,12 @@ package org.ruboss.controllers {
       targetServiceId:int = -1) {
       super();
       cache = new Dictionary;
+      names = new Dictionary;
 
       // set-up model cache
       for each (var model:Class in models) {
         var fqn:String = getQualifiedClassName(model);
+        names[model] = fqn;
         cache[fqn] = new ModelsCollection;
       }
       
@@ -93,6 +101,16 @@ package org.ruboss.controllers {
 
       // initialize service manager
       Ruboss.services = new ServiceManager(services);
+    }
+    
+    /**
+     * Checks to see if a particular model has been requested and cached successfully.
+     * 
+     * @param clazz Class reference of the model to be checked
+     */
+    public function contains(clazz:Class):Boolean {
+      var fqn:String = names[clazz];
+      return state.indexed[fqn] && !state.waiting[fqn];
     }
     
     /**
@@ -139,7 +157,7 @@ package org.ruboss.controllers {
      */
     [Bindable(event="cacheUpdate")]
     public function cached(clazz:Class):ModelsCollection {
-      var fqn:String = getQualifiedClassName(clazz);
+      var fqn:String = names[clazz];
       return ModelsCollection(cache[fqn]);      
     }
 
@@ -181,7 +199,7 @@ package org.ruboss.controllers {
           if (optsOrAfterCallback['targetServiceId']) targetServiceId = optsOrAfterCallback['targetServiceId'];
         }
       }
-      var fqn:String = getQualifiedClassName(clazz);
+      var fqn:String = names[clazz];
       if (!state.indexed[fqn]) {
         invokeIndex(clazz, afterCallback, fetchDependencies, useLazyMode, page, metadata, nestedBy, 
           targetServiceId);
@@ -449,7 +467,7 @@ package org.ruboss.controllers {
     private function invokeIndex(clazz:Class, afterCallback:Object = null, fetchDependencies:Boolean = true, 
       useLazyMode:Boolean = true, page:int = -1, metadata:Object = null, nestedBy:Array = null, 
       targetServiceId:int = -1):void {
-      var fqn:String = getQualifiedClassName(clazz);
+      var fqn:String = names[clazz];
       state.pages[fqn] = page;
         
       if (!fetchDependencies) {
@@ -488,7 +506,7 @@ package org.ruboss.controllers {
     private function invokePage(clazz:Class, afterCallback:Object = null, fetchDependencies:Boolean = true, 
       useLazyMode:Boolean = true, page:int = -1, metadata:Object = null, nestedBy:Array = null, 
       targetServiceId:int = -1):void {
-      var fqn:String = getQualifiedClassName(clazz);
+      var fqn:String = names[clazz];
 
       if (!fetchDependencies) {
         // flag this model as standalone (in that it doesn't require dependencies)
@@ -505,60 +523,71 @@ package org.ruboss.controllers {
     }
 
     public function onIndex(models:Object):void {
-      var toCache:Array = new Array;
-      if (models is Array) {
-        toCache = models as Array;
+      var toCache:ModelsArray = new ModelsArray;
+      if (models is ModelsArray) {
+        toCache = models as ModelsArray;
       } else {
         toCache.push(models);
       }
       
-      if (toCache.length == 0) return;
-      var name:String = getQualifiedClassName(toCache[0]);
-      for each (var item:Object in toCache) {
-        processNtoNRelationships(item);
-      }
+      var name:String;
+      if (toCache.length) {
+        name = getQualifiedClassName(toCache[0]);
 
-      var items:ModelsCollection = new ModelsCollection(toCache);
-      cache[name] = items;
+        var items:ModelsCollection = ModelsCollection(cache[name]);
+        items.removeAll();
+        for each (var item:Object in toCache) {
+          processNtoNRelationships(item);
+          items.addItem(item);
+        }
+      } else {
+        name = toCache.modelsType;
+      }
+      
       dispatchEvent(new CacheUpdateEvent(name));      
     }
     
     public function onPage(models:Object):void {
-      var toCache:Array = new Array;
+      var toCache:ModelsArray = new ModelsArray;
       
-      if (models is Array) {
-        toCache = models as Array;
+      if (models is ModelsArray) {
+        toCache = models as ModelsArray;
       } else {
         toCache.push(models);
       }
       
-      if (toCache.length == 0) return;
-      var items:ModelsCollection = null;
-
-      var name:String = getQualifiedClassName(toCache[0]);
-      var current:ModelsCollection = ModelsCollection(cache[name]);
-        
-      var threshold:int = Ruboss.cacheThreshold[name];
-        
-      if (threshold > 1 && (current.length + models.length) >= threshold) {
-        var sliceStart:int = Math.min(current.length, models.length);
-        Ruboss.log.debug("cache size for: " + name + " will exceed the max threshold of: " + threshold + 
-          ", slicing at: " + sliceStart);
-        items = new ModelsCollection(current.source.slice(sliceStart));
-      } else {
-        items = current;
-      }
-
-      for each (var model:Object in toCache) {
-        if (items.hasItem(model)) {
-          items.setItem(model);
+      var name:String;
+      if (toCache.length) {
+        var items:ModelsCollection = null;
+  
+        name = getQualifiedClassName(toCache[0]);
+        var current:ModelsCollection = ModelsCollection(cache[name]);
+          
+        var threshold:int = Ruboss.cacheThreshold[name];
+          
+        if (threshold > 1 && (current.length + models.length) >= threshold) {
+          var sliceStart:int = Math.min(current.length, models.length);
+          Ruboss.log.debug("cache size for: " + name + " will exceed the max threshold of: " + threshold + 
+            ", slicing at: " + sliceStart);
+          items = new ModelsCollection(current.source.slice(sliceStart));
         } else {
-          items.addItem(model);
+          items = current;
         }
-        processNtoNRelationships(model);
+  
+        for each (var model:Object in toCache) {
+          if (items.hasItem(model)) {
+            items.setItem(model);
+          } else {
+            items.addItem(model);
+          }
+          processNtoNRelationships(model);
+        }
+  
+        cache[name] = items;
+      } else {
+        name = toCache.modelsType;
       }
-
-      cache[name] = items;
+      
       dispatchEvent(new CacheUpdateEvent(name));      
     }
     

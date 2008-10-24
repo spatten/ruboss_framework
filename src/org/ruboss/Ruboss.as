@@ -13,7 +13,6 @@
  ******************************************************************************/
 package org.ruboss {
   import flash.utils.Dictionary;
-  import flash.utils.getQualifiedClassName;
   
   import mx.collections.ArrayCollection;
   import mx.logging.ILogger;
@@ -29,7 +28,6 @@ package org.ruboss {
   import org.ruboss.services.ServiceManager;
   import org.ruboss.services.http.HTTPServiceProvider;
   import org.ruboss.utils.RubossUtils;
-  import org.ruboss.models.ModelsCollection;
   
   /**
    * Provides central access to most commonly used framework features
@@ -75,6 +73,11 @@ package org.ruboss {
      * used when paging to determine when to start throwing things out 
      */
     public static var cacheThreshold:Dictionary = new Dictionary;
+    
+    /**
+     * stores current session id for use by URLRequest
+     */
+    public static var sessionToken:String;
     
     /** default error namespace used by service providers */
     public static const DEFAULT_ERROR_FIELD:String = ":base";
@@ -183,7 +186,7 @@ package org.ruboss {
      * @param maxItems maximum number of items
      */
     public static function setCacheThreshold(clazz:Class, maxItems:int):void {
-      cacheThreshold[getQualifiedClassName(clazz)] = maxItems;
+      cacheThreshold[Ruboss.models.names[clazz]] = maxItems;
     }
     
     /**
@@ -191,7 +194,7 @@ package org.ruboss {
      * @see setCacheThreshold
      */
     public static function resetCacheThreshold(clazz:Class):void {
-      delete cacheThreshold[getQualifiedClassName(clazz)];
+      delete cacheThreshold[Ruboss.models.names[clazz]];
     }
 
     /**
@@ -208,6 +211,12 @@ package org.ruboss {
       target.includeCategory = true;
       target.includeLevel = true;
       Log.addTarget(target);
+    }
+    
+    public static function reset():void {
+      errors = null;
+      defaultMetadata = null;
+      sessionToken = null;
     }
     
     /**

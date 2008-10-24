@@ -30,6 +30,7 @@ package org.ruboss.services.http {
   
   import org.ruboss.Ruboss;
   import org.ruboss.controllers.RubossModelsController;
+  import org.ruboss.models.ModelsArray;
   import org.ruboss.models.ModelsCollection;
   import org.ruboss.models.ModelsStateMetadata;
   import org.ruboss.models.RubossFileReference;
@@ -68,7 +69,7 @@ package org.ruboss.services.http {
       var response:XML = XML(object);
       var xmlFragmentName:String = response.localName().toString();
       if (xmlFragmentName == "errors" && RubossUtils.isEmpty(response.@type)) {
-        Ruboss.log.debug("received service error response, terminating processing");
+        Ruboss.log.debug("received service error response, terminating processing:\n" + response.toXMLString());
         Ruboss.errors = new HTTPServiceErrors(response);
         return true;
       }
@@ -111,13 +112,14 @@ package org.ruboss.services.http {
         Ruboss.log.debug("unmarshalling response:\n" + xmlFragment.toXMLString());
 
         var objectName:String = xmlFragment.localName();
-        var results:Array = new Array;
+        var results:ModelsArray = new ModelsArray;
         // if the object name is the same as the controller specified 
         // on the model (which are typically plural) we know we got back 
         // a collection of "known" model elements
         if (xmlFragment.@type == "array") {
           // we are only going to specifically unmarshall known relationships
           if (state.fqns[objectName]) {
+            results.modelsType = state.fqns[objectName];
             var intermediateCache:Dictionary = new Dictionary;
             for each (var node:XML in xmlFragment.children()) {
               results.push(unmarshallNode(node, null, null, intermediateCache));
@@ -129,8 +131,9 @@ package org.ruboss.services.http {
           return unmarshallNode(xmlFragment, null, null, new Dictionary);
         }
       } catch(e:Error) {
-        Ruboss.log.error("'" + object + "' has not been unmarshalled. it is not an XML element.");
-        throw new Error("'" + object + "' is not an XML element");
+        Ruboss.log.error("'" + object + "' has not been unmarshalled. it is not an XML element: Error: " + 
+          e.getStackTrace());
+        throw new Error("'" + object + "' is not an XML element. Error: " + e.getStackTrace());
       }
       return object;
     }
@@ -580,6 +583,10 @@ package org.ruboss.services.http {
       request.url = httpService.url;
       request.method = httpService.method;
       request.data = payload;
+      
+      if (Ruboss.sessionToken) {
+        request.url = request.url + "?_swfupload_session_id=" + Ruboss.sessionToken;
+      }
       
       file.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, function(event:DataEvent):void {
         responder.result(new ResultEvent(ResultEvent.RESULT, false, false, event.data));
