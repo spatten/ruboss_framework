@@ -22,6 +22,9 @@
   import org.ruboss.Ruboss;
 
   [Bindable]
+  public var defaultSelectedItem:String = null;
+
+  [Bindable]
   public var radioItems:Array;
   
   [Bindable]
@@ -47,6 +50,9 @@
       var retval:ArrayCollection = new ArrayCollection();
       for (var i:int = 0; i < radioItems.length; i++) {
         retval.addItem(comboItems.withPropertyValue(matchField, radioItems[i]));
+      }
+      if (selectedItem == null) {
+        selectedItem = comboItems.withPropertyValue(matchField, defaultSelectedItem);
       }
       return retval;
     }
@@ -85,7 +91,11 @@
   <mx:HBox width="100%">
     <mx:RadioButtonGroup id="radioButtonGroup" selectedValue="{selectedItem}"/>
     <mx:Repeater id="rp" dataProvider="{getRadioButtonItems(radioItems, comboItems)}">
-      <mx:RadioButton label="{rp.currentItem}" value="{rp.currentItem}" group="{radioButtonGroup}" click="onRadioButtonClick(event);"/>
+      <mx:RadioButton
+        label="{rp.currentItem}"
+        value="{rp.currentItem}"
+        group="{radioButtonGroup}"
+        click="onRadioButtonClick(event);"/>
     </mx:Repeater>
   </mx:HBox>
   <mx:HBox width="100%">
