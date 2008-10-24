@@ -71,8 +71,8 @@ package org.ruboss.controllers {
      * @param method HTTP method to use
      * @param unmarshall boolean indicating if the response should be unmarshalled using
      *  HTTPSericeProvider
-     * @param cache boolean indicating if the response should be cached (this implicitly assumes
-     *  the response will be unmarshalled first)
+     * @param cacheBy String indicates how the response should be cached, i.e. which handler to
+     *  trigger (this implicitly assumes the response will be unmarshalled first)
      */
     public function invoke(optsOrURL:Object, data:Object = null, method:* = SimpleHTTPController.GET, 
       unmarshall:Boolean = false, cacheBy:String = null):void {
