@@ -67,6 +67,7 @@
     _selectedItem = value;
     radioButtonGroup.selectedValue = value;
     comboBox.selectedItem = value;
+    dispatchEvent(new Event("change"));
   }
   
   private function onRadioButtonClick(event:Event):void {
