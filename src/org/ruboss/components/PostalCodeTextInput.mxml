@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TextInput xmlns:mx="http://www.adobe.com/2006/mxml"
+  focusOut="validateAndFormatZipCode()">
+<!--
+ Copyright 2008, Ruboss Technology Corporation.
+
+ This software is dual-licensed under both the terms of the Ruboss Commercial
+ License v1 (RCL v1) as published by Ruboss Technology Corporation and under
+ the terms of the GNU General Public License v3 (GPL v3) as published by the
+ Free Software Foundation.
+
+ Both the RCL v1 (rcl-1.0.txt) and the GPL v3 (gpl-3.0.txt) are included in
+ the source code. If you have purchased a commercial license then only the
+ RCL v1 applies; otherwise, only the GPL v3 applies. To learn more or to buy a
+ commercial license, please go to http://ruboss.com.
+-->
+<mx:Script><![CDATA[
+  import mx.events.ValidationResultEvent;
+
+  public var usa:Boolean;
+
+  private function validateAndFormatZipCode():void {
+    var unformattedText:String =
+      text.toUpperCase().replace(/\W/g, "");
+    var result:ValidationResultEvent =
+      validator.validate(unformattedText);
+    if (result.type == ValidationResultEvent.VALID) {
+      if (usa) {
+        text = zipCodeFormatter.format(unformattedText);
+      } else {
+        text = postalCodeFormatter.format(unformattedText);
+      } 
+    }
+  }
+]]></mx:Script>
+  <mx:ZipCodeFormatter id="zipCodeFormatter"
+    formatString="#####-####"/>
+  <mx:ZipCodeFormatter id="postalCodeFormatter"
+    formatString="### ###"/>
+  <mx:ZipCodeValidator id="validator"
+    required="false"
+    allowedFormatChars=" -"
+    domain="US or Canada"
+    source="{this}"
+    property="text"
+    enabled="{enabled}"/>
+</mx:TextInput>
