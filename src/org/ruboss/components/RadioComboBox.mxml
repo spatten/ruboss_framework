@@ -64,9 +64,11 @@
   }
   
   public function set selectedItem(value:Object):void {
+    trace("RadioComboBox#set selectedItem = " + value);
     _selectedItem = value;
     radioButtonGroup.selectedValue = value;
     comboBox.selectedItem = value;
+    dispatchEvent(new Event("change"));
   }
   
   private function onRadioButtonClick(event:Event):void {
