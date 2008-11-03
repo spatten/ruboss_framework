@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Label xmlns:mx="http://www.adobe.com/2006/mxml"
+  mouseChildren="false" buttonMode="true" useHandCursor="true"
+  height="15" width="20" textAlign="center" fontSize="12" fontFamily="Arial"/>
