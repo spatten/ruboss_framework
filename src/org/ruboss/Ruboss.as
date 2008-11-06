@@ -127,7 +127,7 @@ package org.ruboss {
       after:Boolean = false):RubossCollection {
       return RubossUtils.mergeArrays(items.source, toAdd, after);
     }
-    
+
     /**
      * Filters a given ArrayCollection with no side effects, a new ruboss array collection is created
      * that the filter is applied on.
@@ -169,7 +169,12 @@ package org.ruboss {
      * @return new filtered RubossCollection instance
      */
     public static function filters(items:RubossCollection, filters:Array = null):RubossCollection {
-      var results:RubossCollection = new RubossCollection(items.source.slice(0));
+      var results:RubossCollection;
+      if(items == null){
+        results = new RubossCollection();
+      } else {
+        results = new RubossCollection(items.source.slice(0));
+      }
       results.filterFunctions = filters;
       results.refresh();
       return results;

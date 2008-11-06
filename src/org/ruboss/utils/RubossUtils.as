@@ -287,6 +287,23 @@ package org.ruboss.utils {
     }
 
     /**
+     * Merges all the ArrayCollections into a RubossCollection (without side-effects).
+     * A new RubossCollection is created/returned as a result.  Every parameter
+     * must be an ArrayCollection.
+     *  
+     * @return a *new* RubossCollection
+     */
+    public static function mergeAll(... args):RubossCollection {
+      var retval:Array = [];
+      for (var i:uint = 0; i < args.length; i++) {
+        if(args[i] != null){
+          retval = retval.concat(args[i].source);
+        }
+      } 
+      return new RubossCollection(retval);
+    }
+        
+    /**
      * Merges two arrays and returns a new RubossCollection of the result
      */
     public static function mergeArrays(items:Array, toAdd:Array, 
