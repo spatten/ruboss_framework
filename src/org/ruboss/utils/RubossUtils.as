@@ -271,6 +271,13 @@ package org.ruboss.utils {
     }
 
     /**
+     * Get default object is str is empty or null
+     */
+    public static function getWithDefaultObj(str:String, defaultObj:Object):Object {
+      return isEmpty(str) ? defaultObj : str;
+    }
+
+    /**
      * Calculate days from now
      */
     public static function daysFromNow(numDays:int):Date {
