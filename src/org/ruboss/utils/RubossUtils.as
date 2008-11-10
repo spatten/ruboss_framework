@@ -264,6 +264,13 @@ package org.ruboss.utils {
     }
 
     /**
+     * Check if the Array is null or empty
+     */
+    public static function isArrayEmpty(arr:Array):Boolean {
+      return arr == null || arr.length == 0;
+    }
+
+    /**
      * Get default string is str is empty or null
      */
     public static function getWithDefault(str:String, defaultStr:String):String {
