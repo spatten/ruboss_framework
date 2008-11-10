@@ -138,7 +138,12 @@ package org.ruboss {
      * @return new filtered RubossCollection instance
      */
     public static function filter(items:ArrayCollection, filter:Function = null):RubossCollection {
-      var results:RubossCollection = new RubossCollection(items.source.slice(0));
+      var results:RubossCollection;
+      if(items == null){
+        results = new RubossCollection();
+      } else {
+        results = new RubossCollection(items.source.slice(0));
+      }
       results.filterFunction = filter;
       results.refresh();
       return results;
