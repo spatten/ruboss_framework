@@ -45,6 +45,27 @@ package org.ruboss.collections {
     }
 
     /**
+     * Attempts to find all objects in the collection that have specified property key
+     * and value
+     *  
+     * @param propertyName name of the property to look up
+     * @param propertyValue value of the property
+     *  
+     * @return a RubossCollection with all matches, empty if none
+     */
+    [Bindable("collectionChange")]
+    public function allWithPropertyValue(propertyName:String, propertyValue:Object):RubossCollection {
+      var arr:Array = [];
+      for (var i:int = 0; i < length; i++) {
+        var item:Object = getItemAt(i);
+        if (item[propertyName] == propertyValue) {
+          arr.push(item);
+        }
+      }
+      return new RubossCollection(arr);
+    }
+
+    /**
      * Find index of the first item with a given property name/ value pair.
      *  
      * @param propertyName name of the property
