@@ -18,81 +18,45 @@
 </mx:Metadata>
 <mx:Script><![CDATA[
   import mx.collections.ArrayCollection;
-  import org.ruboss.collections.RubossCollection;
   import org.ruboss.Ruboss;
 
   [Bindable]
-  public var defaultSelectedItem:String = null;
+  public var radioItems:ArrayCollection;
+  
+  [Bindable]
+  public var comboItems:ArrayCollection;
 
-  [Bindable]
-  public var radioItems:Array;
-  
-  [Bindable]
-  public var comboItems:RubossCollection;
-  
-  [Bindable]
-  public var matchField:String;
-  
   [Bindable]
   public var comboPrompt:String = "Select one...";
   
   [Bindable]
   public var comboWidth:int = 200;
-  
+
   [Bindable]
-  private var _selectedItem:Object;
-  
-  private function getRadioButtonItems(radioItems:Array, comboItems:RubossCollection):ArrayCollection {
-    if (radioItems == null || comboItems == null) return null;
-    if (matchField == null) {
-      return new ArrayCollection(radioItems);
-    } else {
-      var retval:ArrayCollection = new ArrayCollection();
-      for (var i:int = 0; i < radioItems.length; i++) {
-        retval.addItem(comboItems.withPropertyValue(matchField, radioItems[i]));
-      }
-      if (selectedItem == null) {
-        selectedItem = comboItems.withPropertyValue(matchField, defaultSelectedItem);
-      }
-      return retval;
-    }
-  }
-  
-  [Bindable]
-  public function get selectedItem():Object {
-    return _selectedItem;
-  }
-  
-  public function set selectedItem(value:Object):void {
-    trace("RadioComboBox#set selectedItem = " + value);
-    _selectedItem = value;
-    radioButtonGroup.selectedValue = value;
-    comboBox.selectedItem = value;
-    dispatchEvent(new Event("change"));
-  }
+  public var defaultSelectedItem:Object = null;
+
+  [Bindable]  
+  public var selectedItem:Object;
   
   private function onRadioButtonClick(event:Event):void {
+    trace("RadioComboBox#onRadioButtonClick, event = " + event);
     comboBox.selectedIndex = -1;
-    _selectedItem = radioButtonGroup.selectedValue;
-    dispatchEvent(new Event("change"));
+    selectedItem = radioButtonGroup.selectedValue;
   }
   
   private function onComboBoxChange(event:Event):void {
-    _selectedItem = comboBox.selectedItem;
-    dispatchEvent(new Event("change"));
+    trace("RadioComboBox#onComboBoxChange, event = " + event);
+    selectedItem = comboBox.selectedItem;
   }
   
-  private function filterRadioItems(obj:Object):Boolean {
-    var searchKey:Object = (matchField == null) ? obj : obj[matchField];
-    trace("searchKey = " + searchKey);
-    trace("radioItems = " + radioItems);
-    trace("radioItems.indexOf(searchKey) = " + radioItems.indexOf(searchKey));
-    return radioItems.indexOf(searchKey) < 0;
+  private function preventNull(obj:Object, defaultObj:Object):Object {
+    return obj == null ? defaultObj : obj;
   }
 ]]></mx:Script>
   <mx:HBox width="100%">
-    <mx:RadioButtonGroup id="radioButtonGroup" selectedValue="{selectedItem}"/>
-    <mx:Repeater id="rp" dataProvider="{getRadioButtonItems(radioItems, comboItems)}">
+    <mx:RadioButtonGroup id="radioButtonGroup"
+      selectedValue="{preventNull(selectedItem, defaultSelectedItem)}"/>
+    <mx:Repeater id="rp" dataProvider="{radioItems}">
       <mx:RadioButton
         label="{rp.currentItem}"
         value="{rp.currentItem}"
@@ -101,13 +65,14 @@
     </mx:Repeater>
   </mx:HBox>
   <mx:HBox width="100%">
-    <mx:RadioButton id="comboRB" label="" value="{null}" group="{radioButtonGroup}" click="onRadioButtonClick(event);"/>
+    <mx:RadioButton id="comboRB" label="" value="{null}"
+      group="{radioButtonGroup}" click="onRadioButtonClick(event);"/>
     <mx:HBox enabled="{comboRB.selected}">
       <mx:ComboBox id="comboBox"
-        dataProvider="{Ruboss.filter(comboItems, filterRadioItems)}"
+        dataProvider="{comboItems}"
         prompt="{comboPrompt}"
         width="{comboWidth}"
-        selectedItem="{selectedItem}"
+        selectedItem="{preventNull(selectedItem, defaultSelectedItem)}"
         change="onComboBoxChange(event);"/>
     </mx:HBox>
   </mx:HBox>

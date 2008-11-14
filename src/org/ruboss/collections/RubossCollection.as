@@ -100,6 +100,18 @@ package org.ruboss.collections {
       return retval;
     }
 
+    [Bindable("collectionChange")]
+    public function except(exclude:RubossCollection):RubossCollection {
+      var arr:Array = [];
+      for (var i:int = 0; i < length; i++) {
+        var item:Object = getItemAt(i);
+        if (!exclude.contains(item)) {
+          arr.push(item);
+        }
+      }
+      return new RubossCollection(arr);
+    }
+
     /** 
      * @see mx.collections.ArrayCollection
      */
