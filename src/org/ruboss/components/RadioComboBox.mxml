@@ -32,9 +32,6 @@
   [Bindable]
   public var comboWidth:int = 200;
 
-  [Bindable]
-  public var defaultSelectedItem:Object = null;
-
   [Bindable]  
   public var selectedItem:Object;
   
@@ -42,11 +39,13 @@
     trace("RadioComboBox#onRadioButtonClick, event = " + event);
     comboBox.selectedIndex = -1;
     selectedItem = radioButtonGroup.selectedValue;
+    dispatchEvent(new Event("change"));
   }
   
   private function onComboBoxChange(event:Event):void {
     trace("RadioComboBox#onComboBoxChange, event = " + event);
     selectedItem = comboBox.selectedItem;
+    dispatchEvent(new Event("change"));
   }
   
   private function preventNull(obj:Object, defaultObj:Object):Object {
@@ -55,7 +54,7 @@
 ]]></mx:Script>
   <mx:HBox width="100%">
     <mx:RadioButtonGroup id="radioButtonGroup"
-      selectedValue="{preventNull(selectedItem, defaultSelectedItem)}"/>
+      selectedValue="{selectedItem}"/>
     <mx:Repeater id="rp" dataProvider="{radioItems}">
       <mx:RadioButton
         label="{rp.currentItem}"
@@ -72,7 +71,7 @@
         dataProvider="{comboItems}"
         prompt="{comboPrompt}"
         width="{comboWidth}"
-        selectedItem="{preventNull(selectedItem, defaultSelectedItem)}"
+        selectedItem="{selectedItem}"
         change="onComboBoxChange(event);"/>
     </mx:HBox>
   </mx:HBox>
