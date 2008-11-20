@@ -17,6 +17,9 @@
 <mx:Script><![CDATA[
   import mx.events.ValidationResultEvent;
 
+  [Bindable]
+  public var required:Boolean;
+
   public var usa:Boolean;
 
   private function validateAndFormatZipCode():void {
@@ -24,7 +27,7 @@
       text.toUpperCase().replace(/\W/g, "");
     var result:ValidationResultEvent =
       validator.validate(unformattedText);
-    if (result.type == ValidationResultEvent.VALID) {
+    if (result != null && result.type == ValidationResultEvent.VALID) {
       if (usa) {
         text = zipCodeFormatter.format(unformattedText);
       } else {
@@ -38,7 +41,7 @@
   <mx:ZipCodeFormatter id="postalCodeFormatter"
     formatString="### ###"/>
   <mx:ZipCodeValidator id="validator"
-    required="false"
+    required="{required}"
     allowedFormatChars=" -"
     domain="US or Canada"
     source="{this}"
