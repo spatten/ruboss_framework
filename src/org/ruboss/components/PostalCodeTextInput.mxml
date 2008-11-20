@@ -24,7 +24,7 @@
       text.toUpperCase().replace(/\W/g, "");
     var result:ValidationResultEvent =
       validator.validate(unformattedText);
-    if (result.type == ValidationResultEvent.VALID) {
+    if (result != null && result.type == ValidationResultEvent.VALID) {
       if (usa) {
         text = zipCodeFormatter.format(unformattedText);
       } else {
