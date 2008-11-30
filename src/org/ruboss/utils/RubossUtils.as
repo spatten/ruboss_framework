@@ -197,12 +197,20 @@ package org.ruboss.utils {
     }
 
     /**
-     * Converts a string to CamelCase from snake_case
+     * Converts a string to camelCase from snake_case
      */
     public static function toCamelCase(string:String):String {
       return string.replace(/_[a-z]/g, function x():String {
         return (arguments[0] as String).slice(1).toUpperCase();
       });      
+    }
+    
+    /**
+     * Converts a string to TitleCase from snake_case
+     */
+    public static function toTitleCase(string:String):String {
+      var camelCase:String = toCamelCase(string);
+      return camelCase.charAt(0).toUpperCase() + camelCase.slice(1);
     }
     
     /**
