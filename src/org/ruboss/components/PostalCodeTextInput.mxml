@@ -15,19 +15,25 @@
  commercial license, please go to http://ruboss.com.
 -->
 <mx:Script><![CDATA[
+  import mx.validators.Validator;
   import mx.events.ValidationResultEvent;
 
   [Bindable]
-  public var required:Boolean;
+  public var required:Boolean = false;
 
+  [Bindable]
   public var usa:Boolean;
+  
+  public function get validator():Validator {
+    return usa ? zipCodeValidator : postalCodeValidator;
+  }
 
   private function validateAndFormatZipCode():void {
     var unformattedText:String =
       text.toUpperCase().replace(/\W/g, "");
     var result:ValidationResultEvent =
       validator.validate(unformattedText);
-    if (result != null && result.type == ValidationResultEvent.VALID) {
+    if (result.type == ValidationResultEvent.VALID) {
       if (usa) {
         text = zipCodeFormatter.format(unformattedText);
       } else {
@@ -40,11 +46,10 @@
     formatString="#####-####"/>
   <mx:ZipCodeFormatter id="postalCodeFormatter"
     formatString="### ###"/>
-  <mx:ZipCodeValidator id="validator"
-    required="{required}"
-    allowedFormatChars=" -"
-    domain="US or Canada"
-    source="{this}"
-    property="text"
-    enabled="{enabled}"/>
+  <mx:ZipCodeValidator id="zipCodeValidator"
+    required="{required}" listener="{this}" triggerEvent=""/>
+  <mx:RegExpValidator id="postalCodeValidator"
+    expression="^[A-Z]\d[A-Z]\d[A-Z]\d$"
+    noMatchError="The postal code is invalid."
+    required="{required}" listener="{this}" triggerEvent=""/>
 </mx:TextInput>

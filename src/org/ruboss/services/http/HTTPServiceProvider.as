@@ -122,7 +122,26 @@ package org.ruboss.services.http {
             results.modelsType = state.fqns[objectName];
             var intermediateCache:Dictionary = new Dictionary;
             for each (var node:XML in xmlFragment.children()) {
-              results.push(unmarshallNode(node, null, null, intermediateCache));
+              var unmarshalledNode:Object = unmarshallNode(node, null, null, intermediateCache);
+              var fqn:String = getQualifiedClassName(unmarshalledNode);
+              if (fqn == results.modelsType) {
+                var alreadyContainsId:Boolean = false;
+                for (var i:int = 0; i < results.length; i++) {
+                  if (results[i].id == unmarshalledNode.id) {
+                    alreadyContainsId = true;
+                    break;
+                  }
+                }
+                if (alreadyContainsId) {
+                  Ruboss.log.error("HTTPServiceProvider#unmarshall BAD DATA, DUPLICATE " +
+                    unmarshalledNode + " WITH id " + unmarshalledNode.id);
+                } else {
+                  results.push(unmarshalledNode);
+                }
+              } else {
+                Ruboss.log.error("HTTPServiceProvider#unmarshall ERROR: EXPECTED " +
+                  results.modelsType + " AND GOT " + fqn);
+              }
             }
           }
           return results;
