@@ -125,7 +125,19 @@ package org.ruboss.services.http {
               var unmarshalledNode:Object = unmarshallNode(node, null, null, intermediateCache);
               var fqn:String = getQualifiedClassName(unmarshalledNode);
               if (fqn == results.modelsType) {
-                results.push(unmarshalledNode);
+                var alreadyContainsId:Boolean = false;
+                for (var i:int = 0; i < results.length; i++) {
+                  if (results[i].id == unmarshalledNode.id) {
+                    alreadyContainsId = true;
+                    break;
+                  }
+                }
+                if (alreadyContainsId) {
+                  Ruboss.log.error("HTTPServiceProvider#unmarshall BAD DATA, DUPLICATE " +
+                    unmarshalledNode + " WITH id " + unmarshalledNode.id);
+                } else {
+                  results.push(unmarshalledNode);
+                }
               } else {
                 Ruboss.log.error("HTTPServiceProvider#unmarshall ERROR: EXPECTED " +
                   results.modelsType + " AND GOT " + fqn);
