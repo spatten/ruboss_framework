@@ -29,6 +29,7 @@ package org.ruboss.controllers {
   import org.ruboss.models.ModelsArray;
   import org.ruboss.models.ModelsCollection;
   import org.ruboss.models.ModelsStateMetadata;
+  import org.ruboss.models.RubossModel;
   import org.ruboss.services.GenericServiceErrors;
   import org.ruboss.services.IServiceProvider;
   import org.ruboss.services.ServiceManager;
@@ -104,6 +105,12 @@ package org.ruboss.controllers {
       Ruboss.services = new ServiceManager(services);
     }
     
+    public function alreadyShown(object:Object):Boolean {
+      var fqn:String = getQualifiedClassName(object);
+      var showed:ArrayCollection = ArrayCollection(state.showed[fqn]);
+      return showed != null && showed.contains(object["id"]);
+    }
+        
     /**
      * Checks to see if a particular model has been requested and cached successfully.
      * 
