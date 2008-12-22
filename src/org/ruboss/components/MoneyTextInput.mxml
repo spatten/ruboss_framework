@@ -30,7 +30,7 @@
    * Set the number of dollars.  Ideally this would be a decimal type.
    */
   public function set dollars(d:Number):void {
-    cents = int(d * 100);
+    cents = int(Math.round(d * 100));
   }
 
   [Bindable]
