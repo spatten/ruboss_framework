@@ -17,6 +17,11 @@
 <mx:Script><![CDATA[
   import flash.events.Event;
   import mx.utils.StringUtil;
+  
+  [Bindable]
+  public var cents:int = 0;
+
+  public var minDollars:Number = 0.0;
 
   /**
    * Get the number of dollars.  Ideally this would be a decimal type.
@@ -30,11 +35,8 @@
    * Set the number of dollars.  Ideally this would be a decimal type.
    */
   public function set dollars(d:Number):void {
-    cents = int(Math.round(d * 100));
+    cents = int(Math.round(Math.max(minDollars, d) * 100));
   }
-
-  [Bindable]
-  public var cents:int;
     
   private function formatCurrency(cents:int):String {
     if (isNaN(cents)) {
