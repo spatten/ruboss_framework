@@ -22,6 +22,7 @@ package org.ruboss.utils {
   import mx.formatters.DateFormatter;
   import mx.utils.ObjectUtil;
   
+  import org.ruboss.Ruboss;
   import org.ruboss.collections.RubossCollection;
   import org.ruboss.models.RubossModel;
 
@@ -123,6 +124,30 @@ package org.ruboss.utils {
       
       return value;
     }
+    
+    /**
+     * Figures out the URL that this model resource represents including any other
+     *  resources that it should be nested under.
+     * 
+     * @param object the model resource
+     * @param nestedBy an array of model instances that should be used to nest this resource
+     * @return string representation of the URL for this model resource 
+     */
+    public static function nestResource(object:Object, nestedBy:Array = null):String {
+      var result:String = "";
+      var fqn:String = getQualifiedClassName(object);
+      if (nestedBy == null || nestedBy.length == 0) 
+        return RubossUtils.getResourcePathPrefix(object) + 
+          Ruboss.models.state.controllers[fqn] + ".fxml";
+      
+      for each (var resource:Object in nestedBy) {
+        result += Ruboss.models.state.controllers[getQualifiedClassName(resource)] + 
+          "/" + resource["id"] + "/";
+      }
+      
+      return RubossUtils.getResourcePathPrefix(object) + result +
+        Ruboss.models.state.controllers[fqn] + ".fxml";
+    }    
     
     /**
      * Gets Resource metadata.

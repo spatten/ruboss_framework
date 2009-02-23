@@ -10,6 +10,7 @@
   <include-classes>
     <class>org.ruboss.components.MoneyTextInput</class>
     <class>org.ruboss.components.DateTextInput</class>
+    <class>org.ruboss.components.RubossAutoComplete</class>
     <class>org.ruboss.services.http.HTTPServiceProvider</class>
     <class>org.ruboss.events.ServiceCallStopEvent</class>
     <class>org.ruboss.services.ServiceManager</class>

@@ -10,6 +10,7 @@
 <classEntry path="org.ruboss.components.MoneyTextInput"/>
 <classEntry path="org.ruboss.components.PostalCodeTextInput"/>
 <classEntry path="org.ruboss.components.RadioComboBox"/>
+<classEntry path="org.ruboss.components.RubossAutoComplete"/>
 <classEntry path="org.ruboss.controllers.ICommand"/>
 <classEntry path="org.ruboss.controllers.RubossCommandsController"/>
 <classEntry path="org.ruboss.controllers.RubossCommandsEventDispatcher"/>
